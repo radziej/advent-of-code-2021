@@ -16,25 +16,24 @@ func main() {
 	}
 
 	//fmt.Println(wd)
-	//movements := []Movement{{"down", 10}, {"down", 10}, {"up", 5}, {"forward", 10}}
-	movements := parseFile(wd + "/puzzle4/input.txt")
-	position := Position{0, 0, 0}
+	//movements := []Movement{{"down", 10}, {"down", 10}, {"forward", 10}, {"up", 5}}
+	movements := parseFile(wd + "/puzzle-03/input.txt")
+	position := Position{0, 0}
 	for _, movement := range movements {
 		move(&position, &movement)
 	}
 	fmt.Printf("Final position: %v\n", position)
-	fmt.Printf("Multiplied position: %v\n", position.x * position.y)
+	fmt.Printf("Multiplied position: %v\n", position.x*position.y)
 }
 
 type Movement struct {
 	direction string
-	amount int
+	amount    int
 }
 
 type Position struct {
 	x int
 	y int
-	aim int
 }
 
 func parseFile(p string) []Movement {
@@ -62,11 +61,10 @@ func parseFile(p string) []Movement {
 func move(position *Position, movement *Movement) {
 	if movement.direction == "forward" {
 		position.x += movement.amount
-		position.y += movement.amount * position.aim
 	} else if movement.direction == "up" {
-		position.aim -= movement.amount
+		position.y -= movement.amount
 	} else if movement.direction == "down" {
-		position.aim += movement.amount
+		position.y += movement.amount
 	} else {
 		log.Fatalf("unrecognized direction: %v", movement.direction)
 	}

@@ -16,7 +16,7 @@ func main() {
 	}
 
 	var fishes []int
-	lines := readLines(workingDirectory + "/puzzle11/input.txt")
+	lines := readLines(workingDirectory + "/puzzle-11/input.txt")
 	for _, token := range strings.Split(lines[0], ",") {
 		number, err := strconv.Atoi(token)
 		if err != nil {

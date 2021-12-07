@@ -16,7 +16,7 @@ func main() {
 
 	// Each line, i.e., diagnostic report consists of 12 binary digits
 	var readings [][12]int
-	for line := range readLines(workingDirectory + "/puzzle6/input.txt") {
+	for line := range readLines(workingDirectory + "/puzzle-06/input.txt") {
 		var reading [12]int
 		for pos, char := range line {
 			reading[pos], err = strconv.Atoi(string(char))
@@ -61,7 +61,7 @@ func main() {
 	carbondioxide := bitsToInteger(carbondioxideReadings[0][:])
 	fmt.Printf("Oxygen: %v\n", oxygen)
 	fmt.Printf("Carbon dioxide: %v\n", carbondioxide)
-	fmt.Printf("Life support: %v\n", oxygen * carbondioxide)
+	fmt.Printf("Life support: %v\n", oxygen*carbondioxide)
 }
 
 func readLines(p string) chan string {
@@ -105,7 +105,7 @@ func filterForDigit(readings [][12]int, digit int, position int) [][12]int {
 func bitsToInteger(bits []int) int {
 	result := 0
 	for i := 0; i < len(bits); i++ {
-		result += bits[len(bits) - 1 - i] << i
+		result += bits[len(bits)-1-i] << i
 	}
 	return result
 }

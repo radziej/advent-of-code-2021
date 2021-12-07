@@ -14,10 +14,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	data := parseFile(wd + "/puzzle2/input.txt")
+	data := parseFile(wd + "/puzzle-01/input.txt")
 	//fmt.Println(data)
-	//fmt.Println(slidingWindowSum([]int{0, 1, 2, 3, 4}, 3))
-	fmt.Println(countIncreases(slidingWindowSum(data, 3)))
+	//fmt.Println(countIncreases([]int{0, 1, 2, 3}))
+	//fmt.Println(countIncreases([]int{0, 0, 0, 1, 0, 1}))
+	fmt.Println(countIncreases(data))
 }
 
 func parseFile(p string) []int {
@@ -38,22 +39,6 @@ func parseFile(p string) []int {
 	}
 
 	return data
-}
-
-func sum(data []int) int {
-	sum := 0
-	for _, value := range data {
-		sum += value
-	}
-	return sum
-}
-
-func slidingWindowSum(data []int, size int) []int {
-	var windows []int
-	for i := size; i <= len(data); i++ {
-		windows = append(windows, sum(data[i - size : i]))
-	}
-	return windows
 }
 
 func countIncreases(data []int) int {

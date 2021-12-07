@@ -19,7 +19,7 @@ func main() {
 
 	//fmt.Println(wd)
 	//movements := []Movement{{"down", 10}, {"down", 10}, {"up", 5}, {"forward", 10}}
-	for line := range readLines(workingDirectory + "/puzzle5/input.txt") {
+	for line := range readLines(workingDirectory + "/puzzle-05/input.txt") {
 		countColumns(&zeroes, &ones, line)
 	}
 	fmt.Printf("Zeroes: %v\n", zeroes)
@@ -28,7 +28,7 @@ func main() {
 	//fmt.Println(bitsToInteger([]int{1, 0, 0, 1}))
 	gamma, epsilon := determineGammaEpsilon(&zeroes, &ones)
 	fmt.Printf("Gamma, Epsilon: %v, %v\n", gamma, epsilon)
-	fmt.Printf("Gamma * Epsilon: %v\n", gamma * epsilon)
+	fmt.Printf("Gamma * Epsilon: %v\n", gamma*epsilon)
 }
 
 func readLines(p string) chan string {
@@ -87,7 +87,7 @@ func determineGammaEpsilon(zeroes *[12]int, ones *[12]int) (int, int) {
 func bitsToInteger(bits []int) int {
 	result := 0
 	for i := 0; i < len(bits); i++ {
-		result += bits[len(bits) - 1 - i] << i
+		result += bits[len(bits)-1-i] << i
 	}
 	return result
 }

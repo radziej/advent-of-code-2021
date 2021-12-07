@@ -17,7 +17,7 @@ func main() {
 	}
 
 	var positions []int
-	lines := readLines(workingDirectory + "/puzzle13/input.txt")
+	lines := readLines(workingDirectory + "/puzzle-13/input.txt")
 	for _, token := range strings.Split(lines[0], ",") {
 		number, err := strconv.Atoi(token)
 		if err != nil {

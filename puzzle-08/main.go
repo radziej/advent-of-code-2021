@@ -105,7 +105,7 @@ func main() {
 
 	numLines := -1
 	currentBoard := BingoBoard{}
-	for line := range readLines(workingDirectory + "/puzzle7/input.txt") {
+	for line := range readLines(workingDirectory + "/puzzle-08/input.txt") {
 		numLines++
 		if line == "" {
 			continue
@@ -134,18 +134,22 @@ func main() {
 		}
 	}
 
-	//for _, draw := range []int{26, 85, 63, 25, 86} {
 	for _, draw := range draws {
+		var unvictorious []BingoBoard
 		for i := range boards {
 			boards[i].Mark(draw)
 			if boards[i].IsVictorious() {
+				fmt.Println("")
 				fmt.Printf("score: %v\n", boards[i].Score())
 				fmt.Printf("draw: %v\n", draw)
 				fmt.Printf("final score: %v\n", draw*boards[i].Score())
-				os.Exit(0)
+			} else {
+				unvictorious = append(unvictorious, boards[i])
 			}
 		}
+		boards = unvictorious
 	}
+	fmt.Println("Enter last final score.")
 }
 
 func readLines(p string) chan string {
