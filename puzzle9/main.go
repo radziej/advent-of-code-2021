@@ -68,29 +68,10 @@ func main() {
 			for i := min(segment.y1, segment.y2); i <= max(segment.y1, segment.y2); i++ {
 				grid[segment.x1][i]++
 			}
-		} else {
-			// By definition, remaining lines must be diagonal
-			width := segment.x2 - segment.x1
-			widthSign := sign(width)
-			height := segment.y2 - segment.y1
-			heightSign := sign(height)
-			for i := 0; i <= max(widthSign*width, heightSign*height); i++ {
-				grid[segment.x1+widthSign*i][segment.y1+heightSign*i]++
-			}
 		}
 	}
 
 	fmt.Printf("Grid points with 2 or more overlaps: %v\n", aboveThreshold(grid, 2))
-}
-
-func sign(a int) int {
-	if a > 0 {
-		return 1
-	} else if a == 0 {
-		return 0
-	} else {
-		return -1
-	}
 }
 
 func min(a, b int) int {
