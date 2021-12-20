@@ -36,8 +36,7 @@ func main() {
 	}
 
 	// Example data
-	//grid = [][]int{}
-	//for _, row := range [][]int{
+	//grid = [][]int{
 	//	{1, 1, 6, 3, 7, 5, 1, 7, 4, 2},
 	//	{1, 3, 8, 1, 3, 7, 3, 6, 7, 2},
 	//	{2, 1, 3, 6, 5, 1, 1, 3, 2, 8},
@@ -48,21 +47,21 @@ func main() {
 	//	{3, 1, 2, 5, 4, 2, 1, 6, 3, 9},
 	//	{1, 2, 9, 3, 1, 3, 8, 5, 2, 1},
 	//	{2, 3, 1, 1, 9, 4, 4, 5, 8, 1},
-	//} {
-	//	grid = append(grid, row)
 	//}
 
 	//for _, row := range grid {
 	//	fmt.Println(row)
 	//}
 
-	path := searchPaths(grid, Point{len(grid) - 1, len(grid[0]) - 1}, []Point{{0, 0}}, []Point{})
-	fmt.Println(path)
-	for _, step := range path {
-		fmt.Printf(" %v", grid[step.Row][step.Column])
-	}
-	fmt.Println("")
-	fmt.Println("Total risk of path", pathRisk(grid, path))
+	//path := recursiveSearch(grid, Point{len(grid) - 1, len(grid[0]) - 1}, []Point{{0, 0}}, []Point{})
+	//fmt.Println(path)
+	//for _, step := range path {
+	//	fmt.Printf(" %v", grid[step.Row][step.Column])
+	//}
+	//fmt.Println("")
+	//fmt.Println("Total risk of path", pathRisk(grid, path))
+	lowestCost := dynamicSearch(grid, Point{len(grid) - 1, len(grid[0]) - 1})
+	fmt.Println("Optimal cost:", lowestCost)
 }
 
 func readLines(p string) chan string {
@@ -85,7 +84,57 @@ func readLines(p string) chan string {
 	return channel
 }
 
-func searchPaths(grid [][]int, target Point, path []Point, shortestPath []Point) []Point {
+func dynamicSearch(grid [][]int, target Point) int {
+	height := len(grid)
+	width := len(grid[0])
+	costs := make([][]int, height)
+	unvisited := make(map[Point]bool)
+	for i := range grid {
+		costs[i] = make([]int, width)
+		for j := range costs[i] {
+			costs[i][j] = math.MaxInt
+			unvisited[Point{i, j}] = true
+		}
+	}
+	costs[0][0] = 0
+
+	for len(unvisited) > 0 {
+		// Find node with the lowest tentative cost
+		point := target
+		pointCost := math.MaxInt64
+		for p, _ := range unvisited {
+			if costs[p.Row][p.Column] < pointCost {
+				pointCost = costs[p.Row][p.Column]
+				point = p
+			}
+		}
+
+		// Left
+		row := point.Row
+		column := point.Column
+		cost := costs[row][column]
+		if row-1 >= 0 && costs[row-1][column] > cost+grid[row-1][column] {
+			costs[row-1][column] = cost + grid[row-1][column]
+		}
+		// Right
+		if row+1 < height && costs[row+1][column] > cost+grid[row+1][column] {
+			costs[row+1][column] = cost + grid[row+1][column]
+		}
+		// Up
+		if column-1 >= 0 && costs[row][column-1] > cost+grid[row][column-1] {
+			costs[row][column-1] = cost + grid[row][column-1]
+		}
+		// Down
+		if column+1 < width && costs[row][column+1] > cost+grid[row][column+1] {
+			costs[row][column+1] = cost + grid[row][column+1]
+		}
+		delete(unvisited, point)
+	}
+
+	return costs[target.Row][target.Column]
+}
+
+func recursiveSearch(grid [][]int, target Point, path []Point, shortestPath []Point) []Point {
 	position := path[len(path)-1]
 	risk := pathRisk(grid, path)
 	shortestRisk := pathRisk(grid, shortestPath)
@@ -145,7 +194,7 @@ func searchPaths(grid [][]int, target Point, path []Point, shortestPath []Point)
 		branch := make([]Point, len(path)+1)
 		copy(branch, path)
 		branch[len(branch)-1] = option
-		shortestPath = searchPaths(grid, target, branch, shortestPath)
+		shortestPath = recursiveSearch(grid, target, branch, shortestPath)
 	}
 	return shortestPath
 }
