@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/big"
 	"os"
 	"strconv"
 	"strings"
@@ -32,7 +31,7 @@ var hexEncoding = map[string]string{
 
 type Packet interface {
 	Feed(character string) string
-	Evaluate() *big.Int
+	Evaluate() int
 	Parent() Packet
 	AsBinary() string
 	IsSpecified() bool
@@ -50,20 +49,16 @@ type LiteralValue struct {
 	parent               Packet
 }
 
-func (lv *LiteralValue) Evaluate() *big.Int {
+func (lv *LiteralValue) Evaluate() int {
 	if lv.Value == -1 {
 		// Throwing away every fifth bit
 		var bits []string
 		for i := 6; i < len(lv.BinaryRepresentation); i += 5 {
 			bits = append(bits, lv.BinaryRepresentation[i+1:i+5])
 		}
-		//l := len(strings.Join(bits, ""))
-		//if l > 10 {
-		//	fmt.Println(lv.BinaryRepresentation, strings.Join(bits, ""), BinaryToInt(strings.Join(bits, "")))
-		//}
 		lv.Value = BinaryToInt(strings.Join(bits, ""))
 	}
-	return big.NewInt(int64(lv.Value))
+	return lv.Value
 }
 
 func (lv *LiteralValue) Version() int {
@@ -84,7 +79,7 @@ func (lv *LiteralValue) IsSpecified() bool {
 	}
 
 	for i := 6; i < len(lv.BinaryRepresentation); i += 5 {
-		if string(lv.BinaryRepresentation[i]) == "0" && len(lv.BinaryRepresentation) > i+4 {
+		if string(lv.BinaryRepresentation[i]) == "0" && len(lv.BinaryRepresentation) == i+5 {
 			return true
 		}
 	}
@@ -110,14 +105,11 @@ func (lv *LiteralValue) Feed(bits string) string {
 		lv.TypeID = BinaryToInt(lv.BinaryRepresentation[3:6])
 	}
 
-	if len(lv.BinaryRepresentation) > 6 {
-		for i := 0; 6+i < len(lv.BinaryRepresentation); i += 5 {
-			if string(lv.BinaryRepresentation[6+i]) == "0" && len(lv.BinaryRepresentation) > 6+i+5 {
-				overflow := lv.BinaryRepresentation[6+i+5:]
-				lv.BinaryRepresentation = lv.BinaryRepresentation[:6+i+5]
-				//lv.Evaluate()
-				return overflow
-			}
+	for i := 6; i < len(lv.BinaryRepresentation); i += 5 {
+		if string(lv.BinaryRepresentation[i]) == "0" && len(lv.BinaryRepresentation) > i+5 {
+			overflow := lv.BinaryRepresentation[i+5:]
+			lv.BinaryRepresentation = lv.BinaryRepresentation[:i+5]
+			return overflow
 		}
 	}
 	return ""
@@ -127,7 +119,7 @@ func (lv LiteralValue) String() string {
 	if !lv.IsComplete() {
 		return "Value yet unknown"
 	}
-	return fmt.Sprintf("LV %v - %v", lv.BinaryRepresentation, lv.Evaluate())
+	return fmt.Sprintf("LiteralValue %v", lv.Evaluate())
 }
 
 type Operator struct {
@@ -148,62 +140,62 @@ func (o *Operator) Parent() Packet {
 	return o.parent
 }
 
-func (o *Operator) Evaluate() *big.Int {
-	var result *big.Int
+func (o *Operator) Evaluate() int {
+	var result int
 	switch o.TypeID {
 	case 0:
 		// Sum
-		result = big.NewInt(0)
+		result = 0
 		for _, c := range o.Children {
-			result.Add(result, c.Evaluate())
+			result += c.Evaluate()
 		}
 	case 1:
 		// Product
-		result = big.NewInt(1)
+		result = 1
 		for _, c := range o.Children {
-			result.Mul(result, c.Evaluate())
+			result *= c.Evaluate()
 		}
 	case 2:
 		// Minimum
-		result = big.NewInt(-1)
+		result = math.MaxInt64
 		for _, c := range o.Children {
 			v := c.Evaluate()
-			if result.Cmp(big.NewInt(-1)) == 0 || result.Cmp(v) == 1 {
+			if result > v {
 				result = v
 			}
 		}
 	case 3:
 		// Maximum
-		result = big.NewInt(0)
+		result = 0
 		for _, c := range o.Children {
 			v := c.Evaluate()
-			if result.Cmp(v) == -1 {
+			if result < v {
 				result = v
 			}
 		}
 	case 5:
 		// Greater than
 		children := o.Children
-		if children[0].Evaluate().Cmp(children[1].Evaluate()) == 1 {
-			result = big.NewInt(1)
+		if children[0].Evaluate() > children[1].Evaluate() {
+			result = 1
 		} else {
-			result = big.NewInt(0)
+			result = 0
 		}
 	case 6:
 		// Less than
 		children := o.Children
-		if children[0].Evaluate().Cmp(children[1].Evaluate()) == -1 {
-			result = big.NewInt(1)
+		if children[0].Evaluate() < children[1].Evaluate() {
+			result = 1
 		} else {
-			result = big.NewInt(0)
+			result = 0
 		}
 	case 7:
 		// Equal
 		children := o.Children
-		if children[0].Evaluate().Cmp(children[1].Evaluate()) == 0 {
-			result = big.NewInt(1)
+		if children[0].Evaluate() == children[1].Evaluate() {
+			result = 1
 		} else {
-			result = big.NewInt(0)
+			result = 0
 		}
 	}
 	return result
@@ -256,7 +248,11 @@ func (o *Operator) IsComplete() bool {
 }
 
 func (o *Operator) AsBinary() string {
-	return o.BinaryRepresentation
+	s := o.BinaryRepresentation
+	for _, c := range o.Children {
+		s += c.AsBinary()
+	}
+	return s
 }
 
 func (o *Operator) AddSubpacket(p Packet) {
@@ -268,12 +264,7 @@ func (o *Operator) Subpackets() []Packet {
 }
 
 func (o Operator) String() string {
-	s := fmt.Sprintf("Type %v of [", o.TypeID)
-	for _, c := range o.Children {
-		s += fmt.Sprintf("%v ", c.Evaluate())
-	}
-	s += "]"
-	return s
+	return fmt.Sprintf("Operator Type %v, LengthType %v, Length %v with %v children", o.TypeID, o.LengthTypeID, o.Length, len(o.Children))
 }
 
 func BinaryToInt(s string) int {
@@ -317,21 +308,16 @@ func main() {
 
 	hexInput := readString(workingDirectory + "/puzzle-32/input.txt")
 	for i := 0; i < len(hexInput) || IsValid(buffer); i++ {
-		//fmt.Println(packet)
 		// Keep buffering until we can determine type of packet
 		if i < len(hexInput) {
 			buffer += hexEncoding[string(hexInput[i])]
-		}
-		if len(buffer) < 6 {
-			continue
 		}
 
 		// Start new packet if there is no current one
 		if packet.IsSpecified() {
 			if packet.IsComplete() {
 				packet = packet.Parent()
-				continue
-			} else {
+			} else if len(buffer) >= 6 {
 				parent := packet
 				if buffer[3:6] == "100" {
 					packet = &LiteralValue{"", -1, -1, -1, parent}
@@ -339,39 +325,26 @@ func main() {
 					packet = &Operator{"", -1, -1, -1, -1, parent, nil}
 				}
 				parent.AddSubpacket(packet)
+			} else {
+				// Need to extend buffer to determine type of new packet
+				continue
 			}
 		}
 
 		// Feed packet and clear buffer until packet returns overflowing bits
 		if overflow := packet.Feed(buffer); len(overflow) > 0 {
+			//fmt.Println(packet)
 			buffer = overflow
-			if strings.TrimSpace(buffer) == "" {
-				fmt.Println("Overflow:", overflow)
-			}
+			//fmt.Println("Overflow:", overflow)
 		} else {
 			buffer = ""
 		}
 	}
 
-	fmt.Println("Root:", root)
-	for i, sp := range root.Subpackets() {
-		//if i == 9 {
-		fmt.Printf("  Subpacket %v, %v: %v\n", i, sp, sp.Evaluate())
-		for j, sp2 := range sp.Subpackets() {
-			fmt.Printf("    Subpacket %v, %v: %v\n", j, sp2, sp2.Evaluate())
-			for k, sp3 := range sp2.Subpackets() {
-				fmt.Printf("      Subpacket %v, %v: %v\n", k, sp3, sp3.Evaluate())
-				for m, sp4 := range sp3.Subpackets() {
-					fmt.Printf("        Subpacket %v, %v: %v\n", m, sp4, sp4.Evaluate())
-				}
-			}
-			//}
-		}
-	}
+	TreePrint(root, 0)
 
 	fmt.Println("Sum of versions:", SumVersions(root, 0))
 	fmt.Println("Evaluation of packets:", root.Evaluate())
-	fmt.Println("                  Max:", math.MaxInt64)
 }
 
 func readString(path string) string {
@@ -405,4 +378,15 @@ func SumVersions(p Packet, sum int) int {
 		sum = SumVersions(sp, sum)
 	}
 	return sum
+}
+
+func TreePrint(p Packet, level int) {
+	indention := ""
+	for i := 0; i < level; i++ {
+		indention += "  "
+	}
+	fmt.Printf("%v%v\n", indention, p)
+	for _, c := range p.Subpackets() {
+		TreePrint(c, level+1)
+	}
 }

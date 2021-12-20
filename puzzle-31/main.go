@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"strconv"
@@ -78,8 +77,8 @@ func (lv *LiteralValue) IsSpecified() bool {
 		return false
 	}
 
-	for i := 0; 6+i < len(lv.BinaryRepresentation); i += 5 {
-		if string(lv.BinaryRepresentation[6+i]) == "0" && len(lv.BinaryRepresentation) >= 6+i+5 {
+	for i := 6; i < len(lv.BinaryRepresentation); i += 5 {
+		if string(lv.BinaryRepresentation[i]) == "0" && len(lv.BinaryRepresentation) == i+5 {
 			return true
 		}
 	}
@@ -88,6 +87,13 @@ func (lv *LiteralValue) IsSpecified() bool {
 
 func (lv *LiteralValue) IsComplete() bool {
 	return lv.IsSpecified()
+}
+
+func (lv LiteralValue) String() string {
+	if !lv.IsComplete() {
+		return "Value yet unknown"
+	}
+	return fmt.Sprintf("LiteralValue %v", lv.Evaluate())
 }
 
 func (lv *LiteralValue) AddSubpacket(p Packet) {
@@ -105,14 +111,11 @@ func (lv *LiteralValue) Feed(bits string) string {
 		lv.TypeID = BinaryToInt(lv.BinaryRepresentation[3:6])
 	}
 
-	if len(lv.BinaryRepresentation) > 6 {
-		for i := 0; 6+i < len(lv.BinaryRepresentation); i += 5 {
-			if string(lv.BinaryRepresentation[6+i]) == "0" && len(lv.BinaryRepresentation) > 6+i+5 {
-				overflow := lv.BinaryRepresentation[6+i+5:]
-				lv.BinaryRepresentation = lv.BinaryRepresentation[:6+i+5]
-				lv.Evaluate()
-				return overflow
-			}
+	for i := 6; i < len(lv.BinaryRepresentation); i += 5 {
+		if string(lv.BinaryRepresentation[i]) == "0" && len(lv.BinaryRepresentation) > i+5 {
+			overflow := lv.BinaryRepresentation[i+5:]
+			lv.BinaryRepresentation = lv.BinaryRepresentation[:i+5]
+			return overflow
 		}
 	}
 	return ""
@@ -188,7 +191,11 @@ func (o *Operator) IsComplete() bool {
 }
 
 func (o *Operator) AsBinary() string {
-	return o.BinaryRepresentation
+	s := o.BinaryRepresentation
+	for _, c := range o.Children {
+		s += c.AsBinary()
+	}
+	return s
 }
 
 func (o *Operator) AddSubpacket(p Packet) {
@@ -197,6 +204,10 @@ func (o *Operator) AddSubpacket(p Packet) {
 
 func (o *Operator) Subpackets() []Packet {
 	return o.Children
+}
+
+func (o Operator) String() string {
+	return fmt.Sprintf("Operator Type %v, LengthType %v, Length %v with %v children", o.TypeID, o.LengthTypeID, o.Length, len(o.Children))
 }
 
 func BinaryToInt(s string) int {
@@ -228,22 +239,23 @@ func main() {
 	buffer := ""
 	var root Packet = &Operator{"", -1, -1, -1, -1, nil, nil}
 	packet := root
-	//for _, char := range strings.Split("38006F45291200", "") {  // Op0(10, 20)
-	//for _, char := range strings.Split("EE00D40C823060", "") { // Op1(1, 2, 3)
-	//for _, char := range strings.Split("A0016C880162017C3686B18A3D4780", "") { // Op1(1, 2, 3)
-	for char := range readBytes(workingDirectory+"/puzzle-31/input.txt", 1) {
+	hexInput := "38006F45291200" // Op0(10, 20)
+	//hexInput := "EE00D40C823060" // Op1(1, 2, 3)
+	//hexInput := "A0016C880162017C3686B18A3D4780" // Op1(1, 2, 3)
+
+	//hexInput := readString(workingDirectory + "/puzzle-31/input.txt")
+	for i := 0; i < len(hexInput) || IsValid(buffer); i++ {
 		//fmt.Println(packet)
 		// Keep buffering until we can determine type of packet
-		buffer += hexEncoding[char]
-		if len(buffer) < 6 {
-			continue
+		if i < len(hexInput) {
+			buffer += hexEncoding[string(hexInput[i])]
 		}
 
 		// Start new packet if there is no current one
 		if packet.IsSpecified() {
 			if packet.IsComplete() {
 				packet = packet.Parent()
-			} else {
+			} else if len(buffer) >= 6 {
 				parent := packet
 				if buffer[3:6] == "100" {
 					packet = &LiteralValue{"", -1, -1, -1, parent}
@@ -251,11 +263,15 @@ func main() {
 					packet = &Operator{"", -1, -1, -1, -1, parent, nil}
 				}
 				parent.AddSubpacket(packet)
+			} else {
+				// Need to extend buffer to determine type of new packet
+				continue
 			}
 		}
 
 		// Feed packet and clear buffer until packet returns overflowing bits
 		if overflow := packet.Feed(buffer); len(overflow) > 0 {
+			//fmt.Println(packet)
 			buffer = overflow
 			//fmt.Println("Overflow:", overflow)
 		} else {
@@ -263,50 +279,34 @@ func main() {
 		}
 	}
 
-	//fmt.Println("Operator:", root)
-	//for i, sb := range root.Subpackets() {
-	//	fmt.Printf("Subpacket %v: %v\n", i, sb)
-	//}
+	TreePrint(root, 0)
 
-	fmt.Println(SumVersions(root, 0))
-
-	//var buffer []string
-	//for chunk := range readBytes(workingDirectory+"/puzzle-31/input.txt", 1) {
-	//var root Operator
-	//var currentPacket Packet = root
-	//for _, chunk := range strings.Split("38006F45291200", "") {
-	//	//buffer = append(buffer, hexEncoding[chunk])
-	//
-	//}
+	fmt.Println("Sum of versions:", SumVersions(root, 0))
 }
 
-func readBytes(path string, length int) chan string {
-	channel := make(chan string, 1)
+func readString(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
 
-	go func() {
-		defer close(channel)
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	return scanner.Text()
+}
 
-		file, err := os.Open(path)
-		if err != nil {
-			log.Fatal(err)
+func IsValid(buffer string) bool {
+	if buffer == "" {
+		return false
+	}
+
+	for _, c := range buffer {
+		if string(c) != "0" {
+			return true
 		}
-		defer file.Close()
-
-		reader := bufio.NewReader(file)
-		bytes := make([]byte, length)
-		for {
-			_, err := io.ReadFull(reader, bytes)
-			if err != nil {
-				if err == io.EOF {
-					break
-				} else {
-					log.Fatal(err)
-				}
-			}
-			channel <- string(bytes)
-		}
-	}()
-	return channel
+	}
+	return false
 }
 
 func SumVersions(p Packet, sum int) int {
@@ -315,4 +315,15 @@ func SumVersions(p Packet, sum int) int {
 		sum = SumVersions(sp, sum)
 	}
 	return sum
+}
+
+func TreePrint(p Packet, level int) {
+	indention := ""
+	for i := 0; i < level; i++ {
+		indention += "  "
+	}
+	fmt.Printf("%v%v\n", indention, p)
+	for _, c := range p.Subpackets() {
+		TreePrint(c, level+1)
+	}
 }
