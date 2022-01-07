@@ -21,7 +21,7 @@ func main() {
 
 	signedInts := regexp.MustCompile(`[-]?\d+`)
 	cubes := make(map[Vector3D]bool)
-	for _, line := range lines[0:2] {
+	for _, line := range lines {
 		// Read and convert ranges
 		coordinateStrings := signedInts.FindAllString(line, 6)
 		xRange := [2]int{parseOrDie(coordinateStrings[0]), parseOrDie(coordinateStrings[1])}
@@ -54,8 +54,6 @@ func main() {
 		} else {
 			panic(fmt.Sprintf("unrecognized line format: %v", line))
 		}
-		fmt.Println("Total of", len(cubes), "cubes are turned on.")
-
 	}
 
 	fmt.Println("Total of", len(cubes), "cubes are turned on.")
